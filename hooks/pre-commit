@@ -1,0 +1,4 @@
+#!/bin/sh
+# rampart PII pre-commit hook — scans staged additions for PII.
+# install once per clone:  git config core.hooksPath hooks
+exec node "$(git rev-parse --show-toplevel)/scan-staged.mjs"
