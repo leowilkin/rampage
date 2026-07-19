@@ -14,20 +14,32 @@ Woah partner! Looks like we found 2 bits of PII in your latest and greatest comm
   user@example.com - home/index.html:30  (EMAIL)
   +1 (555) 019-2653 - home/dashboard.html:120  (PHONE)
 
-either (Y) accept the risks or (N) pause your commit right there!
+either accept the risks or pause your commit right there:
+
+  ❯ (N) pause your commit right there!
+    (Y) accept the risks
 ```
 
-answer `y` to commit anyway, anything else blocks it.
+"pause" is preselected — arrow down and hit enter to accept the risks and
+commit anyway. `y`/`n` work as shortcuts, and esc/ctrl-c pauses.
 
-## setup
+## install (one line)
+
+```sh
+curl -fsSL https://rampage.alphabeti.se/setup.sh | sh
+```
+
+run it inside a git repo: the scanner installs once into `~/.rampage` and the
+repo gets a pre-commit hook pointing at it (any existing hook is backed up to
+`pre-commit.pre-rampage`). run the same line inside other repos to protect
+them too. the first scan downloads the ~15 MB quantized model from hugging
+face; after that it's cached and runs fully offline.
+
+### from this repo instead
 
 ```sh
 npm install   # installs deps and points git at hooks/ via the prepare script
 ```
-
-that's it — `prepare` runs `git config core.hooksPath hooks`. the first scan
-downloads the ~15 MB quantized model from hugging face; after that it's cached
-and runs fully offline.
 
 ## knobs
 
@@ -36,6 +48,16 @@ and runs fully offline.
 | `RAMPART_SKIP=1 git commit ...` | skip the scan for one commit |
 | `RAMPART_HEURISTICS_ONLY=1` | skip the NER model — fast, structured PII only |
 | `RAMPART_MIN_SCORE=0.6` | raise the NER confidence threshold (default 0.4) |
+
+## hosting the installer
+
+serve two files from the root of rampage.alphabeti.se:
+
+- `setup.sh`
+- `scan-staged.mjs`
+
+`setup.sh` fetches `scan-staged.mjs` from the same origin (override with
+`RAMPAGE_BASE_URL` for testing).
 
 ## what gets scanned
 
