@@ -1,15 +1,13 @@
 {
   "name": "rampage",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "pre-commit hook that scans staged changes for PII with NDS Rampart",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prepare": "git config core.hooksPath hooks",
+    "scan": "node scan-staged.mjs"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
     "@nationaldesignstudio/rampart": "^0.1.3"
