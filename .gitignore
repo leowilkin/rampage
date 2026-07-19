@@ -1,1 +1,3 @@
 node_modules/
+public/setup.sh
+public/scan-staged.mjs

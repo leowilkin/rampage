@@ -227,10 +227,16 @@ async function main() {
   const ner = await loadNer();
 
   // group added lines by file, scan each line so offsets map cleanly to line numbers
+  const ADDRESS_LABELS = new Set(["STREET_NAME", "BUILDING_NUMBER", "SECONDARY_ADDRESS"]);
   const findings = [];
   for (const { file, line, text } of added) {
     if (!text.trim()) continue;
-    const spans = await detect(text, ner);
+    let spans = await detect(text, ner);
+    // a real street address has several parts on one line; a lone address
+    // fragment ("utf-8" → SECONDARY_ADDRESS) is model noise in code
+    if (spans.filter((s) => ADDRESS_LABELS.has(s.label)).length < 2) {
+      spans = spans.filter((s) => !ADDRESS_LABELS.has(s.label));
+    }
     for (const s of spans) findings.push({ pii: s.text, label: s.label, file, line });
   }
 

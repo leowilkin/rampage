@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "rampage",
+  "compatibility_date": "2026-07-01",
+  // assets-only worker: no code, just serves public/ (setup.sh + scan-staged.mjs)
+  "assets": {
+    "directory": "./public"
+  },
+  "routes": [
+    { "pattern": "rampage.alphabeti.se", "custom_domain": true }
+  ]
+}
