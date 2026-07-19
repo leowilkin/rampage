@@ -29,11 +29,20 @@ commit anyway. `y`/`n` work as shortcuts, and esc/ctrl-c pauses.
 curl -fsSL https://rampage.alphabeti.se/setup.sh | sh
 ```
 
-run it inside a git repo: the scanner installs once into `~/.rampage` and the
-repo gets a pre-commit hook pointing at it (any existing hook is backed up to
-`pre-commit.pre-rampage`). run the same line inside other repos to protect
-them too. the first scan downloads the ~15 MB quantized model from hugging
-face; after that it's cached and runs fully offline.
+this installs **globally**: the scanner lands in `~/.rampage` and
+`git config --global core.hooksPath` points every repo on the machine at it —
+no per-repo setup. it plays nice with what you already have:
+
+- a previous global hooksPath (e.g. ggshield/GitGuardian) is chained *after*
+  the rampage scan, not replaced
+- repo-local `.git/hooks` still run — every hook in `~/.rampage/hooks` is a
+  pass-through shim
+- repos that set their own `core.hooksPath` (e.g. husky) are untouched, since
+  local git config beats global
+
+the first scan downloads the ~15 MB quantized model from hugging face; after
+that it's cached and runs fully offline. uninstall by restoring the previous
+hooksPath (printed at install time) or `git config --global --unset core.hooksPath`.
 
 ### from this repo instead
 
