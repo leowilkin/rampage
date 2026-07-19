@@ -12,7 +12,8 @@
  *   RAMPART_HEURISTICS_ONLY=1            skip the NER model (fast / offline)
  */
 import { execFileSync } from "node:child_process";
-import { openSync, readSync, closeSync } from "node:fs";
+import { openSync } from "node:fs";
+import { ReadStream, WriteStream } from "node:tty";
 import {
   detectHeuristics,
   detectNer,
@@ -147,24 +148,74 @@ async function loadNer() {
   }
 }
 
-/** Ask y/n on the terminal even though git owns stdin. */
-function askUser(question) {
-  process.stderr.write(question);
-  let fd;
-  try {
-    fd = openSync("/dev/tty", "r");
-  } catch {
-    process.stderr.write("\nrampart: no terminal to ask on — blocking commit. Re-run with RAMPART_SKIP=1 to override.\n");
-    return false;
-  }
-  try {
-    const buf = Buffer.alloc(64);
-    const n = readSync(fd, buf, 0, 64);
-    const answer = buf.toString("utf8", 0, n).trim().toLowerCase();
-    return answer === "y" || answer === "yes";
-  } finally {
-    closeSync(fd);
-  }
+/**
+ * Arrow-key picker on the terminal even though git owns stdin. "pause" is
+ * preselected; the committer must arrow down to "accept the risks" and hit
+ * enter. y/n also work as shortcuts. Resolves true to allow the commit.
+ */
+function askUser() {
+  return new Promise((resolve) => {
+    let input, out;
+    try {
+      input = new ReadStream(openSync("/dev/tty", "r"));
+      out = new WriteStream(openSync("/dev/tty", "w"));
+    } catch {
+      process.stderr.write(
+        "\nrampart: no terminal to ask on — blocking commit. Re-run with RAMPART_SKIP=1 to override.\n",
+      );
+      resolve(false);
+      return;
+    }
+
+    const options = [
+      { label: "(N) pause your commit right there!", allow: false },
+      { label: "(Y) accept the risks", allow: true },
+    ];
+    let selected = 0;
+
+    const render = (first) => {
+      if (!first) out.write(`\x1b[${options.length}A`);
+      for (let i = 0; i < options.length; i++) {
+        const on = i === selected;
+        out.write(
+          `\r\x1b[2K  ${on ? "\x1b[1;36m❯ " : "  \x1b[2m"}${options[i].label}\x1b[0m\n`,
+        );
+      }
+    };
+
+    const done = (allow) => {
+      input.setRawMode(false);
+      out.write("\x1b[?25h"); // cursor back on
+      input.destroy();
+      out.destroy();
+      resolve(allow);
+    };
+
+    out.write("\neither accept the risks or pause your commit right there:\n\n\x1b[?25l");
+    input.setRawMode(true);
+    render(true);
+
+    input.on("data", (buf) => {
+      const key = buf.toString();
+      if (key === "\x1b[A" || key === "k") {
+        selected = (selected + options.length - 1) % options.length;
+        render();
+      } else if (key === "\x1b[B" || key === "j" || key === "\t") {
+        selected = (selected + 1) % options.length;
+        render();
+      } else if (key === "\r" || key === "\n") {
+        done(options[selected].allow);
+      } else if (key === "y" || key === "Y") {
+        selected = 1;
+        render();
+        done(true);
+      } else if (key === "n" || key === "N" || key === "q" || key === "\x03" || key === "\x1b") {
+        selected = 0;
+        render();
+        done(false);
+      }
+    });
+  });
 }
 
 async function main() {
@@ -192,7 +243,7 @@ async function main() {
   for (const f of findings) {
     process.stderr.write(`  \x1b[31m${f.pii}\x1b[0m - ${f.file}:${f.line}  \x1b[2m(${f.label})\x1b[0m\n`);
   }
-  const ok = askUser("\neither (Y) accept the risks or (N) pause your commit right there! ");
+  const ok = await askUser();
   if (ok) return 0;
   process.stderr.write("\ncommit paused. clean up that PII and try again, partner.\n");
   return 1;
